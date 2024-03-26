@@ -1,48 +1,63 @@
 import cv2
+import mediapipe as mp
 import time
-import os
+import math
 
-import HandTrackingModule as htm
+import numpy as np
 
-wCam, hCam = 640, 480
+from HandTrackingModule import *
 
-cap = cv2.VideoCapture('http://192.168.0.10:8080/videofeed')
-cap.set(3, wCam)
-cap.set(4, hCam)
+def main():
+    cap = cv2.VideoCapture("http://192.168.0.18:8080/videofeed")
+    # cap = cv2.VideoCapture(0)
 
-folderPath = "fingers" # name of the folder, where there are images of fingers
-fingerList = os.listdir(folderPath) # list of image titles in 'fingers' folder
-overlayList = []
-for imgPath in fingerList:
-    image = cv2.imread(f'{folderPath}/{imgPath}')
-    overlayList.append(image)
+    detector = handDetector()
+    height, width = 560, 720
+    canvas = np.zeros((height, width, 3), dtype=np.uint8)
 
-pTime = 0
+    # Convert the blank image to white
+    canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
+    canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
+    
+    thumb_mask = np.zeros_like(canvas)
 
-detector = htm.handDetector(detectionCon=0.75)
-totalFingers = 0
+    prev_x, prev_y = None, None
+    prev_cursor = None
+    while True:
+        success, img = cap.read()
+        detector.findHands(img)
+        lmList, bbox = detector.findPosition(img, handNo=0, draw=False)
 
-while True:
-    sucess, img = cap.read()
-    img = cv2.flip(img, 1)
+        if (
+            detector.results.multi_hand_landmarks
+            and len(detector.results.multi_hand_landmarks) == 1
+            and len(lmList) != 0
+        ):
+            fingersUp = detector.fingersUp()
 
-    img = detector.findHands(img)
-    lmList, bbox = detector.findPosition(img, draw=False)
+            x, y = lmList[8][1], lmList[8][2]  # конец указательного пальца
+            # cursor
+            if prev_cursor:
+                cv2.circle(thumb_mask, prev_cursor, 3, (0, 0, 0), -1)
+            cv2.circle(thumb_mask, (x, y), 3, (255, 255, 255), -1)
+            prev_cursor = (x, y)
 
-    if lmList:
-        fingersUp = detector.fingersUp()
-        totalFingers = fingersUp.count(1)
+            # указательный палец
+            if fingersUp == [0, 1, 0, 0, 0] or fingersUp == [1, 1, 0, 0, 0]:
+                if prev_x is not None and prev_y is not None:
+                    cv2.line(canvas, (prev_x, prev_y), (x, y), (0, 255, 0), 14)
 
-    h, w, c = overlayList[totalFingers].shape
-    img[0:h, 0:w] = overlayList[totalFingers]
+                cv2.circle(img, (x, y), 10, (0, 255, 0), -1)
+                cv2.circle(canvas, (x, y), 10, (0, 255, 0), -1)
+                prev_x, prev_y = x, y
 
-    cTime = time.time()
-    fps = 1/ (cTime-pTime)
-    pTime = cTime
+            else:
+                prev_x, prev_y = None, None
 
-    cv2.putText(img, f'FPS: {int(fps)}', (400, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0), 3)
-    cv2.rectangle(img, (20, 225), (170, 425), (0, 255, 0), cv2.FILLED)
-    cv2.putText(img, str(totalFingers), (45, 375), cv2.FONT_HERSHEY_PLAIN, 10, (255, 0, 0), 25)
+        cv2.imshow("Image", img)
+        cv2.imshow("Canvas", cv2.add( canvas, thumb_mask))
+        cv2.waitKey(1)
 
-    cv2.imshow("Image", img)
-    cv2.waitKey(1)
+
+if __name__ == "__main__":
+    main()
