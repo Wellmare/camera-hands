@@ -6,7 +6,7 @@ import HandTrackingModule as htm
 
 wCam, hCam = 640, 480
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture('http://192.168.0.10:8080/videofeed')
 cap.set(3, wCam)
 cap.set(4, hCam)
 
