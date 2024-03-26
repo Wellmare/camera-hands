@@ -150,23 +150,21 @@ def main():
         success, img = cap.read()
         detector.findHands(img)
         lmList, bbox = detector.findPosition(img, handNo=0, draw=False)
-        
-        
-        
+
         if (
             detector.results.multi_hand_landmarks
             and len(detector.results.multi_hand_landmarks) == 1
             and len(lmList) != 0
         ):
-            fingersUp = detector.fingersUp() 
-            
-            x, y = lmList[8][1], lmList[8][2] # конец указательного пальца 
-            #cursor
-            if (prev_cursor):
+            fingersUp = detector.fingersUp()
+
+            x, y = lmList[8][1], lmList[8][2]  # конец указательного пальца
+            # cursor
+            if prev_cursor:
                 cv2.circle(canvas, prev_cursor, 3, (0, 0, 0), -1)
             cv2.circle(canvas, (x, y), 3, (255, 255, 255), -1)
             prev_cursor = (x, y)
-            
+
             # указательный палец
             if fingersUp == [0, 1, 0, 0, 0] or fingersUp == [1, 1, 0, 0, 0]:
                 if prev_x is not None and prev_y is not None:
@@ -180,9 +178,6 @@ def main():
                 prev_x, prev_y = None, None
 
             cv2.circle(img, (lmList[8][1] + 100, lmList[8][2]), 10, (0, 0, 255), -1)
-        else:
-            lock = False
-            lock_counter = 0
         # большой палец
         # if len(lmList) != 0:
         #     x, y = lmList[4][1], lmList[4][2]
